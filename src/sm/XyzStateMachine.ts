@@ -37,6 +37,13 @@ export interface CallbackRegistration {
 export class XyzStateError extends Error {
 }
 
+const transitionSet : { [transitionId: number]: boolean } = {}
+const linkMap : { 
+    [fromStateId: number] : { 
+        [transitionName: string] : number 
+    } 
+} = {}
+
 // BEGIN_TRANSITIONS: registerTransition("TRANSITION_NAME", XyzState.FROM_STATE, XyzState.TO_STATE);
 registerTransition("run", XyzState.DEFAULT, XyzState.RUNNING);
 registerTransition(null, XyzState.DEFAULT, XyzState.STOPPED);
@@ -243,10 +250,3 @@ class EventListener<T extends Function> {
         return result
     }
 }
-
-const transitionSet : { [transitionId: number]: boolean } = {}
-const linkMap : { 
-    [fromStateId: number] : { 
-        [transitionName: string] : number 
-    } 
-} = {}
