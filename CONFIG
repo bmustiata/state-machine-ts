@@ -1,0 +1,6 @@
+name - default "test"
+binary - default false
+static - default false
+    staticfrom - default "src/html"
+    staticto   - default "out/public"
+customTypes - default false
