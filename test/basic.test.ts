@@ -193,4 +193,11 @@ describe('test', () => {
         chai.assert.equal(XyzState.STOPPED, stateMachine.state);
         chai.assert.equal("DEFAULT:default,DEFAULT:default,RUNNING:running,", data.toString());
     })
+
+    it('should not follow invalid transitions', () => {
+        const stateMachine = new XyzStateMachine(XyzState.STOPPED);
+        const newState = stateMachine.changeState(XyzState.RUNNING)
+
+        chai.assert.equal(newState, XyzState.STOPPED)
+    })
 })
