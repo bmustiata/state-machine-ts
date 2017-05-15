@@ -137,6 +137,8 @@ export class XyzStateMachine {
     }
 
     transition(linkName: string, data? : any) : XyzState {
+        this.ensureStateMachineInitialized()
+
         const sourceState = linkMap[this.currentState]
 
         if (!sourceState) {

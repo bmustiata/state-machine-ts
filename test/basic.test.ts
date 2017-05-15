@@ -200,4 +200,11 @@ describe('test', () => {
 
         chai.assert.equal(newState, XyzState.STOPPED)
     })
+
+    it('should ensure initialization even on transitions', () => {
+        const stateMachine = new XyzStateMachine(XyzState.STOPPED);
+        stateMachine.transition('run')
+
+        chai.assert.equal(stateMachine.state, XyzState.RUNNING)
+    })
 })
