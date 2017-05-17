@@ -184,7 +184,31 @@ export class XyzStateMachine {
         return this.dataListeners[state].addListener('data', callback)
     }
 
+    /**
+     * Changes the state machine into the new state, then sends the data
+     * ignoring the result. This is so on `onData` calls we can just
+     * short-circuit the execution using: `return stateMachine.forwardData(..)`
+     * 
+     * @param newState The state to transition into.
+     * @param data The data to send.
+     */
+    forwardData(newState: XyzState, data: any) : XyzState {
+        this.sendData(newState, data)
+        return null
+    }
+
+    /**
+     * Sends the data into the state machine, to be processed by listeners
+     * registered with `onData`.
+     * @param data The data to send.
+     */
     sendData(data: any) : XyzState;
+    /**
+     * Transitions first the state machine into the new state, then it
+     * will send the data into the state machine.
+     * @param newState 
+     * @param data 
+     */
     sendData(newState: XyzState, data: any) : XyzState;
     sendData(newState: any, data?: any) {
         this.ensureStateMachineInitialized()
@@ -196,11 +220,6 @@ export class XyzStateMachine {
 
         if (typeof newState != 'undefined') {
             this.changeState(newState, data)
-
-            // don't fire the data, if the state machine could not be initialized.
-            if (this.currentState != newState) {
-                return this.currentState
-            }
         }
 
         const targetState = this.dataListeners[this.currentState].fire('data', data)
