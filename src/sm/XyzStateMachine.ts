@@ -52,6 +52,16 @@ registerTransition(null, XyzState.RUNNING, XyzState.STOPPED);
 // END_TRANSITIONS
 
 export class XyzStateMachine {
+    //BEGIN_HANDLEBARS
+    //{{#each properties}}
+    //{{#if this.default}}
+    //    {{@key}} : {{this.type}} = {{this.default}};
+    //{{else}}
+    //    {{@key}} : {{this}};
+    //{{/if}}
+    //{{/each}}
+    //END_HANDLEBARS
+
     private currentState: XyzState = null
     private initialState: XyzState
 
