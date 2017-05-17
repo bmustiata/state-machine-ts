@@ -202,9 +202,32 @@ describe('test', () => {
     })
 
     it('should ensure initialization even on transitions', () => {
-        const stateMachine = new XyzStateMachine(XyzState.STOPPED);
+        const stateMachine = new XyzStateMachine();
         stateMachine.transition('run')
 
         chai.assert.equal(stateMachine.state, XyzState.RUNNING)
+    })
+    
+    it('should allow resending data on a new state', () => {
+        const stateMachine = new XyzStateMachine();
+        let totalSum = 0
+
+        stateMachine.onData(XyzState.DEFAULT, (data) => {
+            stateMachine.sendData(XyzState.RUNNING, data + 2)
+        })
+
+        stateMachine.onData(XyzState.RUNNING, (data) => {
+            stateMachine.sendData(XyzState.STOPPED, data + 3)
+        })
+
+        stateMachine.onData(XyzState.STOPPED, (data) => {
+            totalSum = data
+        })
+
+        const state = stateMachine.sendData(1)
+
+        chai.assert.equal(state, XyzState.STOPPED)
+        chai.assert.equal(6, totalSum)
+        chai.assert.equal(XyzState.STOPPED, stateMachine.state)
     })
 })

@@ -184,8 +184,25 @@ export class XyzStateMachine {
         return this.dataListeners[state].addListener('data', callback)
     }
 
-    sendData(data: any) : XyzState {
+    sendData(data: any) : XyzState;
+    sendData(newState: XyzState, data: any) : XyzState;
+    sendData(newState: any, data?: any) {
         this.ensureStateMachineInitialized()
+
+        if (typeof data == 'undefined') {
+            data = newState
+            newState = undefined
+        }
+
+        if (typeof newState != 'undefined') {
+            this.changeState(newState, data)
+
+            // don't fire the data, if the state machine could not be initialized.
+            if (this.currentState != newState) {
+                return this.currentState
+            }
+        }
+
         const targetState = this.dataListeners[this.currentState].fire('data', data)
 
         if (targetState != null) {
