@@ -10,15 +10,15 @@ export class XyzStateChangeEvent {
     _cancelled: boolean
 
     constructor(private _previousState: XyzState,
-                private _targetState: XyzState,
-                public data: any) {
+        private _targetState: XyzState,
+        public data: any) {
     }
 
-    get previousState() : XyzState {
+    get previousState(): XyzState {
         return this._previousState
     }
 
-    get targetState() : XyzState {
+    get targetState(): XyzState {
         return this._targetState
     }
 
@@ -31,17 +31,17 @@ export type TransitionCallback = (event: XyzStateChangeEvent) => any;
 export type DataCallback = ((data: any) => XyzState) | ((data: any) => void)
 
 export interface CallbackRegistration {
-    detach() : void
+    detach(): void
 }
 
 export class XyzStateError extends Error {
 }
 
-const transitionSet : { [transitionId: number]: boolean } = {}
-const linkMap : { 
-    [fromStateId: number] : { 
-        [transitionName: string] : number 
-    } 
+const transitionSet: { [transitionId: number]: boolean } = {}
+const linkMap: {
+    [fromStateId: number]: {
+        [transitionName: string]: number
+    }
 } = {}
 
 // BEGIN_TRANSITIONS: registerTransition("TRANSITION_NAME", XyzState.FROM_STATE, XyzState.TO_STATE);
@@ -67,10 +67,10 @@ export class XyzStateMachine {
 
     private currentChangeStateEvent: XyzStateChangeEvent
 
-    private transitionListeners: { [stateId: number] : EventListener<TransitionCallback> }  = {}
-    private dataListeners: { [stateId: number] : EventListener<DataCallback> } = {}
+    private transitionListeners: { [stateId: number]: EventListener<TransitionCallback> } = {}
+    private dataListeners: { [stateId: number]: EventListener<DataCallback> } = {}
 
-    constructor(initialState? : XyzState) {
+    constructor(initialState?: XyzState) {
         this.initialState = initialState || 0
 
         // BEGIN_STATES: this.transitionListeners[XyzState.STATE_NAME] = new EventListener<TransitionCallback>()
@@ -86,13 +86,13 @@ export class XyzStateMachine {
         // END_STATES
     }
 
-    get state() { 
+    get state() {
         this.ensureStateMachineInitialized()
         return this.currentState
     }
 
     // BEGIN_TRANSITION_SET: TRANSITION_NAME(data?: any) : XyzState { return this.transition("TRANSITION_NAME", data); }
-    run(data?: any) : XyzState { return this.transition("run", data); }
+    run(data?: any): XyzState { return this.transition("run", data); }
     // END_TRANSITION_SET
 
     private ensureStateMachineInitialized() {
@@ -101,12 +101,12 @@ export class XyzStateMachine {
         }
     }
 
-    changeState(targetState: XyzState, data?: any) : XyzState {
+    changeState(targetState: XyzState, data?: any): XyzState {
         this.ensureStateMachineInitialized()
         return this.changeStateImpl(targetState, data)
     }
 
-    changeStateImpl(targetState: XyzState, data?: any) : XyzState {
+    changeStateImpl(targetState: XyzState, data?: any): XyzState {
         if (typeof targetState == 'undefined') {
             throw new Error('No target state specified. Can not change the state.')
         }
@@ -115,8 +115,8 @@ export class XyzStateMachine {
 
         if (this.currentChangeStateEvent) {
             throw new XyzStateError(
-                        `The XyzStateMachine is already in a changeState (${this.currentChangeStateEvent.previousState} -> ${this.currentChangeStateEvent.targetState}). ` +
-                        `Transitioning the state machine (${this.currentState} -> ${targetState}) in \`before\` events is not supported.`);
+                `The XyzStateMachine is already in a changeState (${this.currentChangeStateEvent.previousState} -> ${this.currentChangeStateEvent.targetState}). ` +
+                `Transitioning the state machine (${this.currentState} -> ${targetState}) in \`before\` events is not supported.`);
         }
 
         if (this.currentState != null && !transitionSet[this.currentState << 16 | targetState]) {
@@ -146,7 +146,7 @@ export class XyzStateMachine {
         return this.currentState
     }
 
-    transition(linkName: string, data? : any) : XyzState {
+    transition(linkName: string, data?: any): XyzState {
         this.ensureStateMachineInitialized()
 
         const sourceState = linkMap[this.currentState]
@@ -192,7 +192,7 @@ export class XyzStateMachine {
      * @param newState The state to transition into.
      * @param data The data to send.
      */
-    forwardData(newState: XyzState, data: any) : XyzState {
+    forwardData(newState: XyzState, data: any): XyzState {
         this.sendData(newState, data)
         return null
     }
@@ -202,14 +202,14 @@ export class XyzStateMachine {
      * registered with `onData`.
      * @param data The data to send.
      */
-    sendData(data: any) : XyzState;
+    sendData(data: any): XyzState;
     /**
      * Transitions first the state machine into the new state, then it
      * will send the data into the state machine.
      * @param newState 
      * @param data 
      */
-    sendData(newState: XyzState, data: any) : XyzState;
+    sendData(newState: XyzState, data: any): XyzState;
     sendData(newState: any, data?: any) {
         this.ensureStateMachineInitialized()
 
@@ -232,9 +232,9 @@ export class XyzStateMachine {
     }
 }
 
-function registerTransition(name: string, fromState: XyzState, toState: XyzState) : void {
+function registerTransition(name: string, fromState: XyzState, toState: XyzState): void {
     transitionSet[fromState << 16 | toState] = true
-    
+
     if (!name) {
         return
     }
@@ -248,41 +248,52 @@ function registerTransition(name: string, fromState: XyzState, toState: XyzState
 }
 
 const EventType = {
-    BEFORE_ENTER : 'before-enter',
-    BEFORE_LEAVE : 'before-leave',
-    AFTER_LEAVE : 'after-leave',
-    AFTER_ENTER : 'after-enter',
+    BEFORE_ENTER: 'before-enter',
+    BEFORE_LEAVE: 'before-leave',
+    AFTER_LEAVE: 'after-leave',
+    AFTER_ENTER: 'after-enter',
 }
 
 class EventListener<T extends Function> {
-    registered : { [eventName: string] : Set<T> } = {}
+    registered: { [eventName: string]: { [callbackId: number]: Function } } = {}
 
-    addListener(eventName: string, callback: T) : CallbackRegistration {
+    addListener(eventName: string, callback: T): CallbackRegistration {
         let eventListeners = this.registered[eventName]
-        
+
         if (!eventListeners) {
-            eventListeners = this.registered[eventName] = new Set();
+            eventListeners = this.registered[eventName] = {};
         }
 
-        eventListeners.add(callback)
+        // GUID generation: https://stackoverflow.com/a/2117523/163415
+        const callbackId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+            .replace(/[xy]/g, function(c) {
+                var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+                return v.toString(16);
+            });
+
+        eventListeners[callbackId] = callback
 
         return {
             detach() {
-                eventListeners.delete(callback)
+                delete eventListeners[callbackId]
             }
         }
     }
 
-    fire(eventName: string, ev: any) : any {
+    fire(eventName: string, ev: any): any {
         if (!this.registered[eventName]) {
             return
         }
 
         let result
 
-        this.registered[eventName].forEach(it => {
+        const listeners = this.registered[eventName]
+
+        for (var k in listeners) {
             try {
-                const potentialResult = it.call(null, ev)
+                const callback = listeners[k];
+
+                const potentialResult = callback.call(null, ev)
                 if (typeof potentialResult !== 'undefined' && typeof result != 'undefined') {
                     throw new XyzStateError(`Data is already returned.`)
                 }
@@ -293,7 +304,8 @@ class EventListener<T extends Function> {
                     throw e
                 }
             }
-        })
+
+        }
 
         return result
     }
