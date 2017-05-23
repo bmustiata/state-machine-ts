@@ -49,6 +49,7 @@ registerTransition("run", XyzState.DEFAULT, XyzState.RUNNING);
 registerTransition(null, XyzState.DEFAULT, XyzState.STOPPED);
 registerTransition(null, XyzState.RUNNING, XyzState.DEFAULT);
 registerTransition(null, XyzState.RUNNING, XyzState.STOPPED);
+registerTransition(null, XyzState.RUNNING, XyzState.RUNNING);
 // END_TRANSITIONS
 
 export class XyzStateMachine {
@@ -109,6 +110,12 @@ export class XyzStateMachine {
     changeStateImpl(targetState: XyzState, data?: any): XyzState {
         if (typeof targetState == 'undefined') {
             throw new Error('No target state specified. Can not change the state.')
+        }
+
+        // this also ignores the fact that maybe there is no transition
+        // into the same state.
+        if (targetState == this.currentState) {
+            return targetState
         }
 
         const stateChangeEvent = new XyzStateChangeEvent(this.currentState, targetState, data)

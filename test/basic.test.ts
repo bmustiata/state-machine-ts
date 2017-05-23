@@ -230,4 +230,17 @@ describe('test', () => {
         chai.assert.equal(6, totalSum)
         chai.assert.equal(XyzState.STOPPED, stateMachine.state)
     })
+
+    it('should should not trigger listeners when transitioning to she same state.', () => {
+        const stateMachine = new XyzStateMachine(XyzState.RUNNING);
+        let testFailed = false
+
+        stateMachine.afterLeave(XyzState.RUNNING, () => {
+            testFailed = true
+        })
+
+        stateMachine.changeState(XyzState.RUNNING)
+
+        chai.assert.isFalse(testFailed)
+    })
 })
