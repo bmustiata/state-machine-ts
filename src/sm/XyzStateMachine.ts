@@ -1,10 +1,33 @@
-export enum XyzState {
-    // BEGIN_STATES: STATE_NAME,
-    DEFAULT,
-    RUNNING,
-    STOPPED,
-    // END_STATES
+function strEnum<T extends string>(o: Array<T>): {[K in T]: K} {
+    return o.reduce((res, key) => {
+        res[key] = key;
+        return res;
+    }, Object.create(null));
 }
+
+export const XyzState = strEnum([
+    //BEGIN_HANDLEBARS
+    //{{#each states}}
+    //    '{{this}}',
+    //{{/each}}
+    'DEFAULT',
+    'RUNNING',
+    'STOPPED'
+    //END_HANDLEBARS
+])
+
+const STATE_INDEX = {
+    //BEGIN_HANDLEBARS
+    //{{#each states}}
+    //    '{{this}}': {{@key}},
+    //{{/each}}
+    'DEFAULT': 0,
+    'RUNNING': 1,
+    'STOPPED': 2,
+    //END_HANDLEBARS
+}
+
+export type XyzState = keyof typeof XyzState
 
 export class XyzStateChangeEvent {
     _cancelled: boolean
@@ -72,7 +95,10 @@ export class XyzStateMachine {
     private dataListeners: { [stateId: number]: EventListener<DataCallback> } = {}
 
     constructor(initialState?: XyzState) {
-        this.initialState = initialState || 0
+        //BEGIN_HANDLEBARS
+        //        this.initialState = initialState || XyzState.{{states.[0]}}
+        this.initialState = initialState || XyzState.DEFAULT
+        //END_HANDLEBARS
 
         // BEGIN_STATES: this.transitionListeners[XyzState.STATE_NAME] = new EventListener<TransitionCallback>()
         // FIXME: make these a `for` loop?
@@ -126,7 +152,7 @@ export class XyzStateMachine {
                 `Transitioning the state machine (${this.currentState} -> ${targetState}) in \`before\` events is not supported.`);
         }
 
-        if (this.currentState != null && !transitionSet[this.currentState << 16 | targetState]) {
+        if (this.currentState != null && !transitionSet[STATE_INDEX[this.currentState] << 16 | STATE_INDEX[targetState]]) {
             console.error(`No transition exists between ${this.currentState} -> ${targetState}.`);
             return this.currentState;
         }
@@ -240,7 +266,7 @@ export class XyzStateMachine {
 }
 
 function registerTransition(name: string, fromState: XyzState, toState: XyzState): void {
-    transitionSet[fromState << 16 | toState] = true
+    transitionSet[STATE_INDEX[fromState] << 16 | STATE_INDEX[toState]] = true
 
     if (!name) {
         return
@@ -273,8 +299,8 @@ class EventListener<T extends Function> {
 
         // GUID generation: https://stackoverflow.com/a/2117523/163415
         const callbackId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
-            .replace(/[xy]/g, function(c) {
-                var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+            .replace(/[xy]/g, function (c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
             });
 
