@@ -64,9 +64,33 @@ export interface CallbackRegistration {
     detach(): void
 }
 
-class XyzDefaultStateListenerRegistration implements CallbackRegistration {
-    detach() {   
+class CompositeCallbackRegistration implements CallbackRegistration {
+    constructor(private listeners: Array<CallbackRegistration>) {
     }
+
+    detach() {   
+        for (let i = 0; i < this.listeners.length; i++) {
+            try {
+                this.listeners[i].detach()
+            } catch(e) {
+                // ignore on purpose
+            }
+        }
+    }
+}
+
+function stateCall<T>(state: XyzState, callback: (state: XyzState) => CallbackRegistration) : CallbackRegistration {
+    if (state) {
+        return callback(state);
+    }
+
+    const registrations = []
+
+    for (let k in XyzState) {                
+        registrations.push(callback(XyzState[k]));
+    }
+
+    return new CompositeCallbackRegistration(registrations);
 }
 
 export class XyzStateError extends Error {
@@ -210,19 +234,27 @@ export class XyzStateMachine {
     }
 
     beforeEnter(state: XyzState, callback: TransitionCallback) {
-        return this.transitionListeners[state].addListener(EventType.BEFORE_ENTER, callback)
+        return stateCall(state, (state) => {
+            return this.transitionListeners[state].addListener(EventType.BEFORE_ENTER, callback);
+        });
     }
 
     afterEnter(state: XyzState, callback: TransitionCallback) {
-        return this.transitionListeners[state].addListener(EventType.AFTER_ENTER, callback)
+        return stateCall(state, (state) => {
+            return this.transitionListeners[state].addListener(EventType.AFTER_ENTER, callback);
+        });
     }
 
     beforeLeave(state: XyzState, callback: TransitionCallback) {
-        return this.transitionListeners[state].addListener(EventType.BEFORE_LEAVE, callback)
+        return stateCall(state, (state) => {
+            return this.transitionListeners[state].addListener(EventType.BEFORE_LEAVE, callback);
+        });
     }
 
     afterLeave(state: XyzState, callback: TransitionCallback) {
-        return this.transitionListeners[state].addListener(EventType.AFTER_LEAVE, callback)
+        return stateCall(state, (state) => {
+            return this.transitionListeners[state].addListener(EventType.AFTER_LEAVE, callback);
+        });
     }
 
     onData(state: XyzState, type: RoutingType, callback: DataCallback);
@@ -233,16 +265,20 @@ export class XyzStateMachine {
 
         if (arguments.length == 2) {
             callback = arguments[1]
-            return this.dataListeners[state].addListener('data', callback)
+            return stateCall(state, (state) => {
+                return this.dataListeners[state].addListener('data', callback)
+            })
         }
 
         type = arguments[1]
         callback = arguments[2]
 
-        return this.dataListeners[state].addListener('data', function(ev) {
-            if (ev.type == type) {
-                return callback.apply(this, arguments);
-            }
+        return stateCall(state, (state) => {
+            return this.dataListeners[state].addListener('data', function(ev) {
+                if (ev.type == type) {
+                    return callback.apply(this, arguments);
+                }
+            });
         });
     }
 
@@ -315,7 +351,6 @@ export class XyzStateMachine {
             this.changeState(newState, data)
         }
 
-        console.log(`data - ${data} with type ${type}`)
         const targetState = this.dataListeners[this.currentState].fire('data', new ListenerEvent(data, type))
 
         if (targetState != null) {
