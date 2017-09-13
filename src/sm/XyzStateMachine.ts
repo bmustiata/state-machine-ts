@@ -50,11 +50,23 @@ export class XyzStateChangeEvent {
     }
 }
 
+export interface DataEvent {
+    data: any
+    type?: RoutingType
+    consume()
+}
+
+export type RoutingType = (string | Function)
 export type TransitionCallback = (event: XyzStateChangeEvent) => any;
-export type DataCallback = ((data: any) => XyzState) | ((data: any) => void)
+export type DataCallback = ((ev: DataEvent) => XyzState) | ((ev: DataEvent) => void)
 
 export interface CallbackRegistration {
     detach(): void
+}
+
+class XyzDefaultStateListenerRegistration implements CallbackRegistration {
+    detach() {   
+    }
 }
 
 export class XyzStateError extends Error {
@@ -213,8 +225,25 @@ export class XyzStateMachine {
         return this.transitionListeners[state].addListener(EventType.AFTER_LEAVE, callback)
     }
 
-    onData(state: XyzState, callback: DataCallback) {
-        return this.dataListeners[state].addListener('data', callback)
+    onData(state: XyzState, type: RoutingType, callback: DataCallback);
+    onData(state: XyzState, callback: DataCallback);
+    onData(state: XyzState) {
+        let callback;
+        let type;
+
+        if (arguments.length == 2) {
+            callback = arguments[1]
+            return this.dataListeners[state].addListener('data', callback)
+        }
+
+        type = arguments[1]
+        callback = arguments[2]
+
+        return this.dataListeners[state].addListener('data', function(ev) {
+            if (ev.type == type) {
+                return callback.apply(this, arguments);
+            }
+        });
     }
 
     /**
@@ -238,24 +267,56 @@ export class XyzStateMachine {
     sendData(data: any): XyzState;
     /**
      * Transitions first the state machine into the new state, then it
-     * will send the data into the state machine.
+     * will send the data with an attached type into the state machine.
      * @param newState 
+     * @param data 
+     * @param type
+     */
+    sendData(newState: XyzState, type: RoutingType, data: any): XyzState;
+    /**
+     * Sends the data into the state machine, with an attached type.
+     * @param type
+     * @param data 
+     */
+    sendData(type: RoutingType, data: any): XyzState;
+    /**
+     * Transitions first the state machine into the newState, then sends the data
+     * to it.
+     * @param newState
      * @param data 
      */
     sendData(newState: XyzState, data: any): XyzState;
-    sendData(newState: any, data?: any) {
+    /**
+     * Ensure the state machine is getting
+     * @param newState 
+     * @param type
+     * @param data 
+     */
+    sendData(newState: any, type?: any, data?: any) {
         this.ensureStateMachineInitialized()
 
-        if (typeof data == 'undefined') {
+        if (typeof type == 'undefined') {
             data = newState
             newState = undefined
+        }
+
+        if (typeof data == 'undefined') {
+            data = type
+            
+            if (XyzState[newState]) { // our enums
+                type = undefined
+            } else {
+                type = newState
+                newState = undefined
+            }
         }
 
         if (typeof newState != 'undefined') {
             this.changeState(newState, data)
         }
 
-        const targetState = this.dataListeners[this.currentState].fire('data', data)
+        console.log(`data - ${data} with type ${type}`)
+        const targetState = this.dataListeners[this.currentState].fire('data', new ListenerEvent(data, type))
 
         if (targetState != null) {
             return this.changeState(targetState, data)
@@ -318,7 +379,7 @@ class EventListener<T extends Function> {
             return
         }
 
-        let result
+        let result        
 
         const listeners = this.registered[eventName]
 
@@ -332,6 +393,10 @@ class EventListener<T extends Function> {
                 }
 
                 result = potentialResult
+
+                if (ev && ev.consumed) {
+                    break;
+                }
             } catch (e) {
                 if (e instanceof XyzStateError) {
                     throw e
@@ -341,5 +406,20 @@ class EventListener<T extends Function> {
         }
 
         return result
+    }
+}
+
+class ListenerEvent {
+    private _consumed : boolean
+
+    constructor(public data: any, public type?: any) {
+    }
+
+    consume() {
+        this._consumed = true
+    }
+
+    get consumed() {
+        return this._consumed
     }
 }

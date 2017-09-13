@@ -174,11 +174,11 @@ describe('test', () => {
 
         let data = "";
 
-        stateMachine.onData(XyzState.DEFAULT, (name) => {
-            data += `DEFAULT:${name},`
+        stateMachine.onData(XyzState.DEFAULT, (ev) => {
+            data += `DEFAULT:${ev.data},`
         });
-        stateMachine.onData(XyzState.RUNNING, (name) => {
-            data += `RUNNING:${name},`
+        stateMachine.onData(XyzState.RUNNING, (ev) => {
+            data += `RUNNING:${ev.data},`
 
             return XyzState.STOPPED;
         });
@@ -212,16 +212,16 @@ describe('test', () => {
         const stateMachine = new XyzStateMachine();
         let totalSum = 0
 
-        stateMachine.onData(XyzState.DEFAULT, (data) => {
-            stateMachine.sendData(XyzState.RUNNING, data + 2)
+        stateMachine.onData(XyzState.DEFAULT, (ev) => {
+            stateMachine.sendData(XyzState.RUNNING, ev.data + 2)
         })
 
-        stateMachine.onData(XyzState.RUNNING, (data) => {
-            stateMachine.sendData(XyzState.STOPPED, data + 3)
+        stateMachine.onData(XyzState.RUNNING, (ev) => {
+            stateMachine.sendData(XyzState.STOPPED, ev.data + 3)
         })
 
-        stateMachine.onData(XyzState.STOPPED, (data) => {
-            totalSum = data
+        stateMachine.onData(XyzState.STOPPED, (ev) => {
+            totalSum = ev.data
         })
 
         const state = stateMachine.sendData(1)
@@ -242,5 +242,58 @@ describe('test', () => {
         stateMachine.changeState(XyzState.RUNNING)
 
         chai.assert.isFalse(testFailed)
+    })
+
+    it('should allow listening for all transitions.', () => {
+        let currentCount = 0
+        const stateMachine = new XyzStateMachine()
+
+        stateMachine.afterEnter(null, () => {
+            currentCount++
+        })
+
+        stateMachine.transition("run")
+        chai.assert.equal(currentCount, 2)
+        stateMachine.changeState(XyzState.STOPPED)
+        chai.assert.equal(currentCount, 3)
+    })
+
+    it('should not call the next listener on data consumption.', () => {
+        const stateMachine = new XyzStateMachine() 
+        let currentCount = 10
+        
+        stateMachine.onData(XyzState.RUNNING, ev => { currentCount += ev.data; ev.consume() })
+        stateMachine.onData(null, ev => currentCount -= 1)
+
+        stateMachine.sendData(1) // this should substract 1 since running is not matching, to consume the event.
+        chai.assert.equal(currentCount, 9)
+        stateMachine.changeState(XyzState.RUNNING)
+
+        stateMachine.sendData(2); // this should add 2
+        chai.assert.equal(11, currentCount)
+        stateMachine.changeState(XyzState.STOPPED)
+
+        stateMachine.sendData(1);
+        chai.assert.equal(currentCount, 10)
+    })
+
+    it('should correctly route typed data', () => {
+        const stateMachine = new XyzStateMachine(XyzState.RUNNING);
+        let currentCount = 0;
+
+        stateMachine.onData(XyzState.RUNNING, 'number', (ev) => {        
+            currentCount += ev.data;
+        });
+        stateMachine.onData(XyzState.RUNNING, (ev) => {
+            currentCount += ev.data;
+        });
+
+        stateMachine.sendData(1); // should be added by the non typedlistener only
+
+        chai.assert.equal(1, currentCount);
+
+        stateMachine.sendData('number', 10);   // should be added by both listeners
+
+        chai.assert.equal(21, currentCount);
     })
 })
